@@ -350,19 +350,23 @@ export class UserModelLoader {
 
         const modelDef = this.convertToModelDefinition(userModel);
 
-        // Create self-contained bundle for out-of-process drivers (e.g., Docker).
-        // This inlines all deps including zod so the bundle runs without network.
-        try {
-          modelDef.bundleSource = await bundleExtension(
+        // Defer self-contained bundling to first out-of-process execution (e.g. Docker).
+        // Memoized so multiple executions in one process only bundle once.
+        // Uses promise-based memoization to avoid duplicate work under concurrent calls.
+        let bundlePromise: Promise<string> | undefined;
+        modelDef.bundleSourceFactory = () => {
+          bundlePromise ??= bundleExtension(
             absolutePath,
             denoPath,
             { selfContained: true },
-          );
-        } catch (error) {
-          logger
-            .warn`Failed to create self-contained bundle for ${file}: ${error}`;
-          // Non-fatal — model still works with raw driver
-        }
+          ).catch((error) => {
+            bundlePromise = undefined;
+            logger
+              .warn`Failed to create self-contained bundle for ${file}: ${error}`;
+            throw error;
+          });
+          return bundlePromise;
+        };
 
         if (!modelRegistry.has(modelDef.type)) {
           modelRegistry.register(modelDef);
