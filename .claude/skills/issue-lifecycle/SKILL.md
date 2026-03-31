@@ -43,14 +43,28 @@ systeminit/swamp#850":
    - Read relevant skills (especially `ddd/SKILL.md`)
    - Explore source files related to the issue
    - Trace code paths to understand the problem
+   - **Check for regression signals**: If the issue describes a bug, use
+     `git log` on the affected files to see if they were recently changed. Check
+     if the described behavior worked in a prior version. This informs whether
+     to classify as `bug` or `regression`.
 
 4. **Classify the issue** based on your analysis:
    ```
    swamp model method run issue-<N> triage \
-     --input type=<bug|feature|unclear> \
+     --input type=<bug|feature|regression|unclear> \
      --input confidence=<high|medium|low> \
      --input reasoning="<your analysis>"
    ```
+
+   **Classification guidance:**
+   - `bug` — something is broken or behaving incorrectly
+   - `feature` — a request for new functionality or enhancement
+   - `regression` — a bug where something **previously worked** but is now
+     broken. Look for signals like: "this used to work", "stopped working
+     after", "worked in version X", references to recent changes that broke
+     existing behavior, or git history showing the affected code was recently
+     modified. Regressions get both `bug` and `regression` labels.
+   - `unclear` — not enough information to classify confidently
 
 5. **Generate an implementation plan**:
 

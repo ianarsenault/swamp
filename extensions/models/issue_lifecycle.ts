@@ -385,14 +385,14 @@ export const model = {
     triage: {
       description: "Classify the issue based on context",
       arguments: z.object({
-        type: z.enum(["bug", "feature", "unclear"]),
+        type: z.enum(["bug", "feature", "regression", "unclear"]),
         confidence: z.enum(["high", "medium", "low"]),
         reasoning: z.string(),
         clarifyingQuestions: z.array(z.string()).optional(),
       }),
       execute: async (
         args: {
-          type: "bug" | "feature" | "unclear";
+          type: "bug" | "feature" | "regression" | "unclear";
           confidence: "high" | "medium" | "low";
           reasoning: string;
           clarifyingQuestions?: string[];
@@ -454,11 +454,21 @@ export const model = {
 
         const typeLabels: Record<string, { add: string[]; remove: string[] }> =
           {
-            bug: { add: ["bug"], remove: ["feature", "needs-triage"] },
-            feature: { add: ["feature"], remove: ["bug", "needs-triage"] },
+            bug: {
+              add: ["bug"],
+              remove: ["feature", "regression", "needs-triage"],
+            },
+            feature: {
+              add: ["feature"],
+              remove: ["bug", "regression", "needs-triage"],
+            },
+            regression: {
+              add: ["bug", "regression"],
+              remove: ["feature", "needs-triage"],
+            },
             unclear: {
               add: ["lifecycle/needs-info"],
-              remove: ["needs-triage"],
+              remove: ["bug", "regression", "needs-triage"],
             },
           };
         const labelOps = typeLabels[args.type];

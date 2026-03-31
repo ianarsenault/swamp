@@ -58,6 +58,21 @@ function createMockChecker(
   };
 }
 
+// Helper: generate a version string for N days ago so tests don't rot
+function versionDaysAgo(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  const stamp = d.toISOString().replace(/[-T:Z]/g, "").substring(0, 8);
+  return `${stamp}.200442.0-sha.abc123`;
+}
+
+function versionDaysAgoAlt(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  const stamp = d.toISOString().replace(/[-T:Z]/g, "").substring(0, 8);
+  return `${stamp}.120000.0-sha.def456`;
+}
+
 // --- getNotification ---
 
 Deno.test("getNotification returns null for dev build", async () => {
@@ -97,15 +112,16 @@ Deno.test("getNotification returns version_stale when version is old", async () 
 });
 
 Deno.test("getNotification returns update_available when cache has newer version", async () => {
+  const currentVersion = versionDaysAgo(2); // 2 days old — well within 30-day window
+  const latestVersion = versionDaysAgoAlt(0); // today
   const cache: UpdateCheckCacheData = {
-    latestVersion: "20260301.120000.0-sha.def456",
+    latestVersion,
     checkedAt: new Date().toISOString(),
   };
   const cacheRepo = createMockCacheRepo(cache);
   const checker = createMockChecker();
-  // Use a recent version so staleness doesn't trigger
   const service = new UpdateNotificationService(
-    "20260228.200442.0-sha.abc123",
+    currentVersion,
     cacheRepo,
     checker,
   );
@@ -113,8 +129,8 @@ Deno.test("getNotification returns update_available when cache has newer version
   const result = await service.getNotification();
   assertEquals(result, {
     type: "update_available",
-    currentVersion: "20260228.200442.0-sha.abc123",
-    latestVersion: "20260301.120000.0-sha.def456",
+    currentVersion,
+    latestVersion,
   });
 });
 
@@ -122,13 +138,13 @@ Deno.test("getNotification returns null when current version is newer than cache
   // User updated via another channel (e.g. deno run compile) to a version
   // newer than what the background check last cached.
   const cache: UpdateCheckCacheData = {
-    latestVersion: "20260228.200442.0-sha.abc123",
+    latestVersion: versionDaysAgo(2), // older cached version
     checkedAt: new Date().toISOString(),
   };
   const cacheRepo = createMockCacheRepo(cache);
   const checker = createMockChecker();
   const service = new UpdateNotificationService(
-    "20260301.120000.0-sha.def456",
+    versionDaysAgoAlt(1), // newer current version
     cacheRepo,
     checker,
   );
@@ -138,7 +154,7 @@ Deno.test("getNotification returns null when current version is newer than cache
 });
 
 Deno.test("getNotification returns null when cache matches current version", async () => {
-  const version = "20260228.200442.0-sha.abc123";
+  const version = versionDaysAgo(2); // recent enough to avoid staleness
   const cache: UpdateCheckCacheData = {
     latestVersion: version,
     checkedAt: new Date().toISOString(),
