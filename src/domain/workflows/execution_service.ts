@@ -137,6 +137,8 @@ export interface StepExecutionContext {
   skipCheckLabels?: string[];
   /** Skip all pre-flight checks */
   skipAllChecks?: boolean;
+  /** Resolved base directory for data storage (S3 cache path) */
+  dataBaseDir?: string;
 }
 
 /**
@@ -198,7 +200,10 @@ export class DefaultStepExecutor implements StepExecutor {
     ctx: StepExecutionContext,
   ): Promise<unknown> {
     const definitionRepo = new YamlDefinitionRepository(ctx.repoDir);
-    const unifiedDataRepo = new FileSystemUnifiedDataRepository(ctx.repoDir);
+    const unifiedDataRepo = new FileSystemUnifiedDataRepository(
+      ctx.repoDir,
+      ctx.dataBaseDir,
+    );
     const outputRepo = new YamlOutputRepository(ctx.repoDir);
     const executionService = new DefaultMethodExecutionService();
     const vaultService = await VaultService.fromRepository(ctx.repoDir);
@@ -1021,16 +1026,19 @@ export class WorkflowExecutionService {
   private readonly definitionRepo: YamlDefinitionRepository;
   private readonly modelResolver: ModelResolver;
   private readonly dataRepo: FileSystemUnifiedDataRepository;
+  private readonly dataBaseDir?: string;
 
   constructor(
     private readonly workflowRepo: WorkflowRepository,
     private readonly runRepo: WorkflowRunRepository,
     private readonly repoDir: string,
     executor?: StepExecutor,
+    dataBaseDir?: string,
   ) {
     this.executor = executor ?? new DefaultStepExecutor();
+    this.dataBaseDir = dataBaseDir;
     this.definitionRepo = new YamlDefinitionRepository(repoDir);
-    this.dataRepo = new FileSystemUnifiedDataRepository(repoDir);
+    this.dataRepo = new FileSystemUnifiedDataRepository(repoDir, dataBaseDir);
     this.modelResolver = new ModelResolver(this.definitionRepo, {
       repoDir,
       dataRepo: this.dataRepo,
@@ -1683,6 +1691,7 @@ export class WorkflowExecutionService {
           skipCheckNames: options.skipCheckNames,
           skipCheckLabels: options.skipCheckLabels,
           skipAllChecks: options.skipAllChecks,
+          dataBaseDir: this.dataBaseDir,
         };
         return this.executor.execute(step, ctx);
       });
@@ -1861,6 +1870,8 @@ export class WorkflowExecutionService {
       this.workflowRepo,
       this.runRepo,
       this.repoDir,
+      undefined,
+      this.dataBaseDir,
     );
 
     let childRun: WorkflowRun | undefined;
