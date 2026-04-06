@@ -43,6 +43,7 @@ import {
   requireCurrentExtensionLayout,
 } from "../../libswamp/mod.ts";
 import { createExtensionUpdateRenderer } from "../../presentation/renderers/extension_update.ts";
+import { resolveSkillsDir } from "../../domain/repo/skill_dirs.ts";
 
 // deno-lint-ignore no-explicit-any
 type AnyOptions = any;
@@ -97,6 +98,8 @@ export const extensionUpdateCommand = new Command()
       SWAMP_SUBDIRS.pulledDatastores,
     );
     const pulledReportsDir = swampPath(repoDir, SWAMP_SUBDIRS.pulledReports);
+    const tool = marker?.tool ?? "claude";
+    const skillsDir = resolveSkillsDir(repoDir, tool);
 
     // 3. Check for legacy extension layout
     await requireCurrentExtensionLayout(lockfilePath);
@@ -125,6 +128,7 @@ export const extensionUpdateCommand = new Command()
           driversDir: pulledDriversDir,
           datastoresDir: pulledDatastoresDir,
           reportsDir: pulledReportsDir,
+          skillsDir,
           repoDir,
           force: true,
         });
