@@ -35,6 +35,7 @@ import { parse as parseYaml, stringify as stringifyYaml } from "@std/yaml";
 interface ProviderDefinition {
   id: string;
   apiKeyEnv: string;
+  delay?: number;
 }
 
 const PROVIDER_REGISTRY: Record<string, ProviderDefinition> = {
@@ -46,9 +47,10 @@ const PROVIDER_REGISTRY: Record<string, ProviderDefinition> = {
     id: "anthropic:messages:claude-opus-4-6",
     apiKeyEnv: "ANTHROPIC_API_KEY",
   },
-  "gpt-4.1": {
-    id: "openai:gpt-4.1",
+  "gpt-5.4": {
+    id: "openai:gpt-5.4",
     apiKeyEnv: "OPENAI_API_KEY",
+    delay: 500,
   },
   "gemini-2.5-pro": {
     id: "google:gemini-2.5-pro",
@@ -206,7 +208,7 @@ async function main(): Promise<void> {
                 `try {`,
                 `  const parsed = typeof output === 'object' ? (Array.isArray(output) ? output : [output]) : JSON.parse(str);`,
                 `  const calls = Array.isArray(parsed) ? parsed : [parsed];`,
-                `  return calls.some(c => c.function?.name === needle || c.name === needle);`,
+                `  return calls.some(c => c.function?.name === needle || c.name === needle || c.functionCall?.name === needle);`,
                 `} catch {}`,
                 `return str.includes('"' + needle + '"');`,
               ].join("\n"),
@@ -226,7 +228,7 @@ async function main(): Promise<void> {
                 `try {`,
                 `  const parsed = typeof output === 'object' ? (Array.isArray(output) ? output : [output]) : JSON.parse(str);`,
                 `  const calls = Array.isArray(parsed) ? parsed : [parsed];`,
-                `  return !calls.some(c => c.function?.name === needle || c.name === needle);`,
+                `  return !calls.some(c => c.function?.name === needle || c.name === needle || c.functionCall?.name === needle);`,
                 `} catch {}`,
                 `return !str.includes('"' + needle + '"');`,
               ].join("\n"),
@@ -252,6 +254,7 @@ async function main(): Promise<void> {
           systemMessage,
           tools,
         },
+        ...(provider.delay ? { delay: provider.delay } : {}),
       },
     ],
     tests,
